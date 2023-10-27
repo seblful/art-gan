@@ -8,7 +8,7 @@ import torch
 import torch.nn.functional as F
 from transformers import CLIPFeatureExtractor, CLIPTextModel, CLIPTokenizer
 from diffusers import AutoencoderKL, DDPMScheduler, PNDMScheduler, StableDiffusionPipeline, UNet2DConditionModel
-from accelerate import Accelerator
+from accelerate import Accelerator, notebook_launcher
 
 
 class Trainer():
@@ -44,6 +44,7 @@ class Trainer():
             pretrained_model_name, subfolder="text_encoder")
         self.vae = AutoencoderKL.from_pretrained(
             pretrained_model_name, subfolder="vae")
+        # print("vae sample size:", self.vae.sample_size)
         self.unet = UNet2DConditionModel.from_pretrained(
             pretrained_model_name, subfolder="unet")
 
@@ -147,12 +148,13 @@ class Trainer():
 
         # Initialize the optimizer
         optimizer = torch.optim.AdamW(
-            text_encoder.get_input_embeddings().parameters(),  # only optimize the embeddings
+            # only optimize the embeddings
+            self.text_encoder.get_input_embeddings().parameters(),
             lr=learning_rate,
         )
 
-        text_encoder, optimizer, train_dataloader = accelerator.prepare(
-            text_encoder, optimizer, train_dataloader
+        self.text_encoder, optimizer, train_dataloader = accelerator.prepare(
+            self.text_encoder, optimizer, train_dataloader
         )
 
         weight_dtype = torch.float32
@@ -196,9 +198,9 @@ class Trainer():
         global_step = 0
 
         for epoch in range(num_train_epochs):
-            text_encoder.train()
+            self.text_encoder.train()
             for step, batch in enumerate(train_dataloader):
-                with accelerator.accumulate(text_encoder):
+                with accelerator.accumulate(self.text_encoder):
                     # Convert images to latent space
                     latents = self.vae.encode(batch["pixel_values"].to(
                         dtype=weight_dtype)).latent_dist.sample().detach()
@@ -217,7 +219,8 @@ class Trainer():
                         latents, noise, timesteps)
 
                     # Get the text embedding for conditioning
-                    encoder_hidden_states = text_encoder(batch["input_ids"])[0]
+                    encoder_hidden_states = self.text_encoder(
+                        batch["input_ids"])[0]
 
                     # Predict the noise residual
                     noise_pred = self.unet(
@@ -240,9 +243,9 @@ class Trainer():
                     # Zero out the gradients for all token embeddings except the newly added
                     # embeddings for the concept, as we only want to optimize the concept embeddings
                     if accelerator.num_processes > 1:
-                        grads = text_encoder.module.get_input_embeddings().weight.grad
+                        grads = self.text_encoder.module.get_input_embeddings().weight.grad
                     else:
-                        grads = text_encoder.get_input_embeddings().weight.grad
+                        grads = self.text_encoder.get_input_embeddings().weight.grad
                     # Get the index for tokens that we want to zero the grads for
                     index_grads_to_zero = torch.arange(
                         len(self.tokenizer)) != self.placeholder_token_id
@@ -272,7 +275,7 @@ class Trainer():
         if accelerator.is_main_process:
             pipeline = StableDiffusionPipeline.from_pretrained(
                 self.pretrained_model_name,
-                text_encoder=accelerator.unwrap_model(text_encoder),
+                text_encoder=accelerator.unwrap_model(self.text_encoder),
                 tokenizer=self.tokenizer,
                 vae=self.vae,
                 unet=self.unet,
@@ -281,3 +284,11 @@ class Trainer():
             # Also save the newly trained embeddings
             save_path = f"learned_embeds.bin"
             self.save_progress(accelerator, save_path)
+
+    def accelerate_train(self):
+        notebook_launcher(self.train, num_processes=1)
+
+        for param in chain(self.unet.parameters(), self.text_encoder.parameters()):
+            if param.grad is not None:
+                del param.grad  # free some memory
+            torch.cuda.empty_cache()
