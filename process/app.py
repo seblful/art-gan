@@ -8,10 +8,24 @@ HOME = os.getcwd()
 PRETRAINED_MODEL_PATH = os.path.join(HOME, 'models')
 
 
-prompt = "people in russia in the bright square 8k hiqh quality in the style <mvQypyI9Sqnnwve1FH>"
+# prompt = "people in russia in the bright square 8k hiqh quality in the style <mvQypyI9Sqnnwve1FH>"
 
 
-def generate_images(input_text):
+# def generate_images(user_prompt, user_negative_prompt):
+#     images_generator = ImagesGenerator(prompt=user_prompt,
+#                                        negative_prompt=user_negative_prompt,
+#                                        pretrained_model_path=PRETRAINED_MODEL_PATH,
+#                                        num_gen_images=4)
+
+#     gen_images = images_generator.generate_images()
+
+#     return gen_images
+
+
+def generate_images(user_prompt, user_negative_prompt):
+    print(type(user_prompt), user_prompt)
+    print(type(user_negative_prompt), user_negative_prompt,
+          user_negative_prompt if user_negative_prompt.strip() else None)
     # Generate four images using stable diffusion
     images = []
     for _ in range(4):
@@ -32,8 +46,9 @@ def gradio_app():
                 Enter a prompt for what you would like Stable Diffusion to generate and click the "Generate Image" button to watch the result.
                 ''')
 
-                user_prompt = gr.Textbox(
-                    label="What would you like to see?", placeholder="Enter some text")
+                user_prompt = gr.Textbox(placeholder="Enter your prompt")
+                user_negative_prompt = gr.Textbox(
+                    placeholder="Enter your negative prompt")
 
                 generate_image_button = gr.Button("Generate Image")
 
@@ -41,7 +56,7 @@ def gradio_app():
                 output_gallery = gr.Gallery(label="Generated Images")
 
         generate_image_button.click(fn=generate_images,
-                                    inputs=[user_prompt],
+                                    inputs=[user_prompt, user_negative_prompt],
                                     outputs=[output_gallery])
 
     combined_sd.launch()
