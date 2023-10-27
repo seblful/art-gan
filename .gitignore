@@ -1,6 +1,10 @@
 train/runs
+train/images
+train/all-images
 
 process/gen-images
+process/models
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
