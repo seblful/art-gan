@@ -44,7 +44,7 @@ class TextualInversionDataset(Dataset):
             self._length = self.num_images * repeats
 
         self.interpolation = {
-            "linear": Image.LINEAR,
+            "linear": Image.BILINEAR,
             "bilinear": Image.BILINEAR,
             "bicubic": Image.BICUBIC,
             "lanczos": Image.LANCZOS,
