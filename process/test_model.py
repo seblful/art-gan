@@ -28,6 +28,8 @@ pipe = StableDiffusionPipeline.from_pretrained(
     torch_dtype=torch.float16,
 ).to("cuda")
 
+pipe.load_textual_inversion(PRETRAINED_MODEL_PATH)
+
 
 def generate_image_grid(prompt,
                         num_samples=2,
@@ -45,7 +47,7 @@ def generate_image_grid(prompt,
 
 
 def main():
-    prompt = "people in russia in the bright square 8k hiqh quality in the style <custom-art>"
+    prompt = "people in the city in the style <mvQypyI9Sqnnwve1FH>"
     grid = generate_image_grid(prompt)
     grid.save('test.jpg')
 
