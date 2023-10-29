@@ -7,14 +7,14 @@ from transformers.utils import is_accelerate_available
 
 class ImagesGenerator():
     def __init__(self,
+                 pretrained_model_path,
                  prompt,
                  negative_prompt,
-                 pretrained_model_path,
-                 num_gen_images
-                 ):
-        self.prompt = prompt
-        self.negative_prompt = negative_prompt
+                 num_gen_images):
+
         self.pretrained_model_path = pretrained_model_path
+        self.prompt = prompt.strip()
+        self.negative_prompt = negative_prompt.strip()
         self.num_gen_images = num_gen_images
 
         self.device = torch.device(
@@ -36,7 +36,7 @@ class ImagesGenerator():
 
         return self.__pipeline
 
-    def generate_images(self):
+    def generate_list_images(self):
         images = self.pipeline(prompt=[self.prompt] * self.num_gen_images,
                                negative_prompt=[
                                    self.negative_prompt] * self.num_gen_images,
