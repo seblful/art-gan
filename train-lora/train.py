@@ -1,32 +1,36 @@
 import os
+import requests
 import toml
 import glob
 from accelerate.utils import write_basic_config
+from tqdm import tqdm
 
 PROJECT_NAME = "last"
 
 HOME = os.getcwd()
 TRAIN_DATA_DIR = os.path.join(HOME, 'images')
 LORA_DIR = os.path.join("LoRA")
+BASE_MODELS_DIR = os.path.join(HOME, "base-models")
 OUTPUT_DIR = os.path.join(LORA_DIR, "output")
 CONFIG_DIR = os.path.join(LORA_DIR, "config")
 LOGGING_DIR = os.path.join(LORA_DIR, "logs")
-CONFIG_PATH = os.path.join(CONFIG_DIR, "config_file.toml")
-ACCELERATE_CONFIG_PATH = os.path.join(CONFIG_DIR, "config.yaml")
-PROMPT_PATH = os.path.join(CONFIG_DIR, "sample_prompt.txt")
 SAMPLE_DIR = os.path.join(OUTPUT_DIR, "sample")
 
+CONFIG_PATH = os.path.join(CONFIG_DIR, "config_file.toml")
+DATASET_CONFIG_PATH = os.path.join(CONFIG_DIR, "dataset_config.toml")
+ACCELERATE_CONFIG_PATH = os.path.join(CONFIG_DIR, "config.yaml")
+SAMPLE_PROMPT_PATH = os.path.join(CONFIG_DIR, "sample_prompt.txt")
+
 MODEL_PATH = os.path.join(
-    HOME, "pretrained_model", "stable-diffusion-2-1-base.safetensors")
-VAE_PATH = os.path.join(HOME, "vae", "stablediffusion.vae.pt")
-
-
-MODEL_NAME = "stable-diffusion-2-1-base"
-MODEL_URL = "https://huggingface.co/stabilityai/stable-diffusion-2-1-base/resolve/main/v2-1_512-ema-pruned.safetensors"
-VAE_URL = "https://huggingface.co/stabilityai/sd-vae-ft-mse-original/resolve/main/vae-ft-mse-840000-ema-pruned.ckpt"
+    BASE_MODELS_DIR, "stable-diffusion-2-1-base.safetensors")
+VAE_PATH = os.path.join(BASE_MODELS_DIR, "stablediffusion.vae.pt")
+NETWORK_WEIGHT_PATH = os.path.join(BASE_MODELS_DIR, "art.safetensors")
 
 
 HF_TOKEN = "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"
+MODEL_NAME = "stable-diffusion-2-1-base"
+MODEL_URL = "https://huggingface.co/stabilityai/stable-diffusion-2-1-base/resolve/main/v2-1_512-ema-pruned.safetensors"
+VAE_URL = "https://huggingface.co/stabilityai/sd-vae-ft-mse-original/resolve/main/vae-ft-mse-840000-ema-pruned.ckpt"
 
 
 v2 = True
@@ -40,12 +44,23 @@ flip_aug = False
 keep_tokens = 0
 
 
-def install(checkpoint_name, url):
-    ext = "ckpt" if url.endswith(".ckpt") else "safetensors"
+def create_dirs(list_of_dirs):
+    for dir in list_of_dirs:
+        os.makedirs(dir, exist_ok=True)
 
-    hf_token = "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"
-    user_header = f'"Authorization: Bearer {hf_token}"'
-    # !aria2c --console-log-level=error --summary-interval=10 --header={user_header} -c -x 16 -k 1M -s 16 -d {pretrained_model} -o {checkpoint_name}.{ext} "{url}"
+
+def download_file(url, filename, chunk_size=8192):
+    if not os.path.exists(filename):
+        with requests.get(url, stream=True) as r:
+            r.raise_for_status()
+            with open(filename, 'wb') as f:
+                for chunk in tqdm(r.iter_content(chunk_size=chunk_size), desc=f"Downloading file {filename}"):
+                    f.write(chunk)
+
+    else:
+        print(f"Base model with filename {filename} was existed before.")
+
+    return filename
 
 
 def parse_folder_name(folder_name, default_num_repeats, default_class_token):
@@ -124,6 +139,12 @@ def train(config):
 
 def main():
 
+    create_dirs([LORA_DIR, BASE_MODELS_DIR, OUTPUT_DIR,
+                CONFIG_DIR, LOGGING_DIR, SAMPLE_DIR])
+
+    for url, model_name in zip((MODEL_URL, VAE_URL), (MODEL_PATH, VAE_PATH)):
+        download_file(url, model_name)
+
     write_basic_config(save_location=ACCELERATE_CONFIG_PATH)
 
     subsets = process_data_dir(
@@ -154,8 +175,6 @@ def main():
         ],
     }
 
-    dataset_config = os.path.join(CONFIG_DIR, "dataset_config.toml")
-
     for key in config:
         if isinstance(config[key], dict):
             for sub_key in config[key]:
@@ -166,10 +185,10 @@ def main():
 
     config_str = toml.dumps(config)
 
-    with open(dataset_config, "w") as f:
+    with open(DATASET_CONFIG_PATH, "w") as f:
         f.write(config_str)
 
-    print(config_str)
+    # print(config_str)
 
     network_category = "LoRA"
     conv_dim = 32
@@ -238,8 +257,8 @@ def main():
     train_batch_size = 1
     mixed_precision = "fp16"  # ["no","fp16","bf16"]
     save_precision = "fp16"  # ["float", "fp16", "bf16"]
-    save_n_epochs_type = "save_every_n_epochs"[
-        "save_every_n_epochs", "save_n_epoch_ratio"]
+    # ["save_every_n_epochs", "save_n_epoch_ratio"]
+    save_n_epochs_type = "save_every_n_epochs"
     save_n_epochs_type_value = 1
     save_model_as = "safetensors"  # ["ckpt", "pt", "safetensors"]
     max_token_length = 225
@@ -350,18 +369,11 @@ def main():
                 f.write(contents)
 
         write_file(CONFIG_PATH, config_str)
-        write_file(PROMPT_PATH, sample_str)
+        write_file(SAMPLE_PROMPT_PATH, sample_str)
 
-        print(config_str)
+        # print(config_str)
 
         # @title ## 5.5. Start Training
-
-    # @param {type:'string'}
-    sample_prompt = "/content/LoRA/config/sample_prompt.txt"
-    # @param {type:'string'}
-    config_file = "/content/LoRA/config/config_file.toml"
-    # @param {type:'string'}
-    dataset_config = "/content/LoRA/config/dataset_config.toml"
 
     accelerate_conf = {
         "config_file": ACCELERATE_CONFIG_PATH,
@@ -369,15 +381,17 @@ def main():
     }
 
     train_conf = {
-        "sample_prompts": sample_prompt,
-        "dataset_config": dataset_config,
-        "config_file": config_file
+        "sample_prompts": SAMPLE_PROMPT_PATH,
+        "dataset_config": DATASET_CONFIG_PATH,
+        "config_file": CONFIG_PATH
     }
 
     accelerate_args = train(accelerate_conf)
     train_args = train(train_conf)
     final_args = f"accelerate launch {accelerate_args} train_network.py {train_args}"
 
+    os.system('conda activate art_env')
+    os.system("conda train_network.py train_args")
     # os.chdir(repo_dir)
     # !{final_args}
 
