@@ -11,6 +11,7 @@ train-lora/LoRA
 train-lora/base-models
 
 train-lora2/images
+train-lora2/output
 train-lora2/images-labels
 train-lora2/LoRA
 train-lora2/base-models
