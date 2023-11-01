@@ -1,9 +1,19 @@
 train/runs
 train/images
 train/all-images
+train/test-images
 
 process/gen-images
 process/models
+
+train-lora/images
+train-lora/LoRA
+train-lora/base-models
+
+train-lora2/images
+train-lora2/LoRA
+train-lora2/base-models
+train-lora2/wandb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
