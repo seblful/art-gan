@@ -1,0 +1,5 @@
+accelerate launch train_dreambooth_lora.py --pretrained_model_name_or_path=stabilityai/stable-diffusion-2-1 --instance_data_dir=images --output_dir=output --instance_prompt="a image in high resolution 8k" --resolution=512 --train_batch_size=1 --gradient_accumulation_steps=1 --checkpointing_steps=100 --learning_rate=1e-4 --report_to="wandb" --lr_scheduler="constant" --lr_warmup_steps=0 --num_train_epochs=10 --max_train_steps=500 --validation_prompt="a image in high resolution 8k" --validation_epochs=100 --seed="0"
+
+pip install git+https://github.com/huggingface/diffusers
+
+accelerate launch --mixed_precision="fp16" train_text_to_image_lora.py --pretrained_model_name_or_path=stabilityai/stable-diffusion-2-1 --train_data_dir images --output_dir=output --dataloader_num_workers=8 --resolution=512 --center_crop --random_flip --train_batch_size=1 --gradient_accumulation_steps=4 --num_train_epochs 5 --max_train_steps=500 --learning_rate=1e-04 --max_grad_norm=1 --lr_scheduler="cosine" --lr_warmup_steps=0 --report_to=wandb --checkpointing_steps=500 --validation_prompt="a image in high resolution 8k" --seed=1337 --caption_column additional_feature
