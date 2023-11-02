@@ -13,9 +13,13 @@ train-lora/base-models
 train-lora2/images
 train-lora2/output
 train-lora2/images-labels
+train-lora2/images-labels2
 train-lora2/LoRA
 train-lora2/base-models
 train-lora2/wandb
+
+process-lora/checkpoint
+process-lora/base-models
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
