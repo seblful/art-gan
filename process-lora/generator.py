@@ -36,7 +36,7 @@ class ImagesGenerator():
         if self.__pipeline is None:
             self.__pipeline = StableDiffusionPipeline.from_pretrained(
                 pretrained_model_name_or_path=self.pretrained_model_name_or_path,
-                torch_dtype=torch.float16)
+                torch_dtype=torch.float16, use_safetensors=False)
             self.__pipeline.scheduler = DPMSolverMultistepScheduler.from_config(
                 self.__pipeline.scheduler.config)
             self.__pipeline.unet.load_attn_procs(self.lora_model_path)
